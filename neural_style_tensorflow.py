@@ -204,7 +204,7 @@ class vgg16:
             self.load_weights(weights, sess)
 
     def transfer_style(self, content_features, style_features):
-        content_loss = tf.reduce_sum(tf.square(self.conv3_1 - content_features))
+        content_loss = tf.reduce_sum(tf.square(self.conv5_1 - content_features))
 
         M_5 = style_features[4].shape[1] * style_features[4].shape[2]
         N_5 = style_features[4].shape[3]
@@ -237,8 +237,8 @@ class vgg16:
         result_1 = (1.0 / (4 * N_1**2 * M_1**2)) * tf.reduce_sum(tf.pow(gram_s_1 - gram_1, 2))
 
         self.loss = 0.0000001*content_loss + 0.0001*(result_3+result_2+result_1+result_4+result_5)
-        self.train_step = tf.gradients(self.loss, imgs)
-
+        self.train_step = tf.gradients(self.loss, self.imgs)
+        # self.train_step = tf.train.AdamOptimizer(2e-3).minimize(self.loss, var_list=[self.imgs])
 
 def gram_matrix(A,M,N):
     v = tf.reshape(A, (M, N))
@@ -258,7 +258,7 @@ if __name__ == '__main__':
     # style_img= np.roll(style_img, 1, axis=-1)
     style_img = imresize(style_img, (224, 224))
 
-    content_features = sess.run(vgg.conv3_1, feed_dict={vgg.imgs: [content_img]})
+    content_features = sess.run(vgg.conv5_1, feed_dict={vgg.imgs: [content_img]})
     style_features = [0 for i in range(5)]
     style_features = sess.run([vgg.conv1_1,vgg.conv2_1,vgg.conv3_1,vgg.conv4_1,vgg.conv5_1], feed_dict={vgg.imgs: [style_img]})
 
