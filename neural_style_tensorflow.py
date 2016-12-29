@@ -255,11 +255,9 @@ if __name__ == '__main__':
     vgg = vgg16(imgs, 'vgg16_weights.npz', sess)
 
     content_img = imread('input.jpg')
-    # content_img= np.roll(content_img, 1, axis=-1)
     content_img = imresize(content_img, (224, 224))
 
-    style_img = imread('style1.jpg')
-    # style_img= np.roll(style_img, 1, axis=-1)
+    style_img = imread('style.jpg')
     style_img = imresize(style_img, (224, 224))
 
     s_assign = vgg.imgs_update.assign(np.asarray([style_img]).astype(float))
@@ -282,9 +280,7 @@ if __name__ == '__main__':
         loss = sess.run(vgg.loss, feed_dict={vgg.imgs: result_img})
         print "iteration",i,"loss",loss
         update = sess.run(vgg.train_step, feed_dict={vgg.imgs: result_img})
-        # result_img = np.subtract(np.asarray(result_img),np.multiply(1,update)).tolist()[0]
 
-    # x2= np.roll(x, 1, axis=-1)
     result_img = sess.run(vgg.imgs_update, feed_dict={vgg.imgs: result_img})
 
     import skimage.io as io
