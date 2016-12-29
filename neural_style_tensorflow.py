@@ -10,7 +10,7 @@ class vgg16:
         # zero-mean input
         with tf.name_scope('preprocess') as scope:
             mean = tf.constant([123.68, 116.779, 103.939], dtype=tf.float32, shape=[1, 1, 1, 3], name='img_mean')
-            images = self.imgs-mean
+            images = self.imgs_update-mean
 
         # conv1_1
         with tf.name_scope('conv1_1') as scope:
@@ -199,12 +199,13 @@ class vgg16:
 
     def __init__(self, imgs, weights=None, sess=None):
         self.imgs = imgs
+        self.imgs_update = tf.Variable(tf.constant(0.0, shape=[1,224,224,3], dtype=tf.float32))
         self.convlayers()
         if weights is not None and sess is not None:
             self.load_weights(weights, sess)
 
     def transfer_style(self, content_features, style_features):
-        content_loss = tf.reduce_sum(tf.square(self.conv5_1 - content_features))
+        content_loss = tf.reduce_sum(tf.square(self.conv5_2 - content_features))
 
         M_5 = style_features[4].shape[1] * style_features[4].shape[2]
         N_5 = style_features[4].shape[3]
@@ -236,9 +237,12 @@ class vgg16:
         gram_1 = gram_matrix(self.conv1_1, M_1, N_1)
         result_1 = (1.0 / (4 * N_1**2 * M_1**2)) * tf.reduce_sum(tf.pow(gram_s_1 - gram_1, 2))
 
-        self.loss = 0.0000001*content_loss + 0.0001*(result_3+result_2+result_1+result_4+result_5)
-        self.train_step = tf.gradients(self.loss, self.imgs)
-        # self.train_step = tf.train.AdamOptimizer(2e-3).minimize(self.loss, var_list=[self.imgs])
+        self.loss = 0.000004*content_loss + 0.0001*(result_1+result_2+result_3+result_4)
+        # self.train_step = tf.gradients(self.loss, self.imgs)
+        self.temp = set(tf.all_variables())
+        self.optim = tf.train.AdamOptimizer(1)
+        self.train_step = self.optim.minimize(self.loss, var_list=[self.imgs_update])
+
 
 def gram_matrix(A,M,N):
     v = tf.reshape(A, (M, N))
@@ -254,24 +258,36 @@ if __name__ == '__main__':
     # content_img= np.roll(content_img, 1, axis=-1)
     content_img = imresize(content_img, (224, 224))
 
-    style_img = imread('style.jpg')
+    style_img = imread('style1.jpg')
     # style_img= np.roll(style_img, 1, axis=-1)
     style_img = imresize(style_img, (224, 224))
 
-    content_features = sess.run(vgg.conv5_1, feed_dict={vgg.imgs: [content_img]})
+    s_assign = vgg.imgs_update.assign(np.asarray([style_img]).astype(float))
+    sess.run(s_assign)
     style_features = [0 for i in range(5)]
     style_features = sess.run([vgg.conv1_1,vgg.conv2_1,vgg.conv3_1,vgg.conv4_1,vgg.conv5_1], feed_dict={vgg.imgs: [style_img]})
 
+    c_assign = vgg.imgs_update.assign(np.asarray([content_img]).astype(float))
+    sess.run(c_assign)
+    content_features = sess.run(vgg.conv5_2, feed_dict={vgg.imgs: [content_img]})
+
     result_img = np.zeros((1,224,224,3)).tolist()
+    # r_assign = vgg.imgs_update.assign(np.asarray(result_img).astype(float))
+    # sess.run(r_assign)
     vgg.transfer_style(content_features, style_features)
-    for i in range(2000):
+
+    sess.run(tf.initialize_variables(set(tf.all_variables()) - vgg.temp))
+
+    for i in range(1000):
         loss = sess.run(vgg.loss, feed_dict={vgg.imgs: result_img})
         print "iteration",i,"loss",loss
         update = sess.run(vgg.train_step, feed_dict={vgg.imgs: result_img})
-        result_img = np.subtract(np.asarray(result_img),np.multiply(1,update)).tolist()[0]
+        # result_img = np.subtract(np.asarray(result_img),np.multiply(1,update)).tolist()[0]
 
     # x2= np.roll(x, 1, axis=-1)
+    result_img = sess.run(vgg.imgs_update, feed_dict={vgg.imgs: result_img})
+
     import skimage.io as io
-    x = np.asarray(result_img[0]).astype(int)
+    x = np.asarray(result_img[0]).astype(np.uint8)
     io.imshow(x)
     io.show()
