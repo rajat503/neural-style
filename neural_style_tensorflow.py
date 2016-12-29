@@ -195,7 +195,6 @@ class vgg16:
         keys = sorted(weights.keys())
         for i, k in enumerate(keys):
             if i <= 25:
-                # print i, k, np.shape(weights[k])
                 sess.run(self.parameters[i].assign(weights[k]))
 
     def __init__(self, imgs, weights=None, sess=None):
@@ -205,8 +204,7 @@ class vgg16:
             self.load_weights(weights, sess)
 
     def transfer_style(self, content_features, style_features):
-        # self.imgs = tf.Variable(result_img)
-        content_loss = tf.reduce_sum(tf.square(self.conv4_1 - content_features))
+        content_loss = tf.reduce_sum(tf.square(self.conv3_1 - content_features))
 
         M_5 = style_features[4].shape[1] * style_features[4].shape[2]
         N_5 = style_features[4].shape[3]
@@ -238,13 +236,8 @@ class vgg16:
         gram_1 = gram_matrix(self.conv1_1, M_1, N_1)
         result_1 = (1.0 / (4 * N_1**2 * M_1**2)) * tf.reduce_sum(tf.pow(gram_s_1 - gram_1, 2))
 
-        # self.loss = tf.add(0.1*content_loss, 0.0001*result_3)
-        # self.loss = tf.add(self.loss, 0.0001*result_2)
-        # self.loss = tf.add(self.loss, 0.0001*result_1)
-        # self.loss = tf.add(self.loss, 0.0001*result_4)
-        self.loss = 0.0000001*content_loss + 0.00001*(result_1+result_4+result_5)
+        self.loss = 0.0000001*content_loss + 0.0001*(result_3+result_2+result_1+result_4+result_5)
         self.train_step = tf.gradients(self.loss, imgs)
-
 
 
 def gram_matrix(A,M,N):
@@ -265,19 +258,20 @@ if __name__ == '__main__':
     # style_img= np.roll(style_img, 1, axis=-1)
     style_img = imresize(style_img, (224, 224))
 
-    content_features = sess.run(vgg.conv4_1, feed_dict={vgg.imgs: [content_img]})
+    content_features = sess.run(vgg.conv3_1, feed_dict={vgg.imgs: [content_img]})
     style_features = [0 for i in range(5)]
     style_features = sess.run([vgg.conv1_1,vgg.conv2_1,vgg.conv3_1,vgg.conv4_1,vgg.conv5_1], feed_dict={vgg.imgs: [style_img]})
 
     result_img = np.zeros((1,224,224,3)).tolist()
     vgg.transfer_style(content_features, style_features)
-    for i in range(5000):
+    for i in range(2000):
         loss = sess.run(vgg.loss, feed_dict={vgg.imgs: result_img})
         print "iteration",i,"loss",loss
         update = sess.run(vgg.train_step, feed_dict={vgg.imgs: result_img})
         result_img = np.subtract(np.asarray(result_img),np.multiply(1,update)).tolist()[0]
-    x = np.asarray(result_img[0]).astype(int)
-    x2= np.roll(x, 1, axis=-1)
+
+    # x2= np.roll(x, 1, axis=-1)
     import skimage.io as io
+    x = np.asarray(result_img[0]).astype(int)
     io.imshow(x)
     io.show()
