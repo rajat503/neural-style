@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from scipy.misc import imread, imresize
+from scipy.misc import imread, imresize, imsave
 
 class vgg16:
 
@@ -283,7 +283,9 @@ if __name__ == '__main__':
 
     result_img = sess.run(vgg.imgs_update, feed_dict={vgg.imgs: result_img})
 
-    import skimage.io as io
+    # import skimage.io as io
     x = np.asarray(result_img[0]).astype(np.uint8)
-    io.imshow(x)
-    io.show()
+    # io.imshow(x)
+    # io.show()
+
+    imsave('output.jpg', x)
